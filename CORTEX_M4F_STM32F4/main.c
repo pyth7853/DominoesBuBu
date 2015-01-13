@@ -39,6 +39,15 @@
 #include "task.h"
 #include "semphr.h"
 
+#include "stm32f4xx.h"
+#include "stm32f4xx_gpio.h"
+#include "stm32f4xx_usart.h"
+#include "stm32f4xx_syscfg.h"
+#include "stm32f4xx_tim.h"
+
+//Library config for this project!!!!!!!!!!!
+#include "stm32f4xx_conf.h"
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -53,6 +62,45 @@ static int states[] = {TRAFFIC_RED, TRAFFIC_YELLOW, TRAFFIC_GREEN,
 static float axes[3] = {0};
 int count = 0;
 
+const int p_scale = 1;
+const int period = 1680 ;
+const int prescalar = 1000 * 2 ;
+const int T4full = 1680 * 2 ;
+const int T3full = 1680 ;
+const float s = 0.6 ;
+
+
+void bubuGo(void){
+    //TIM4->CCR1=((period/2.5)*0.825)/p_scale; 
+    //TIM3->CCR1=((period/3)*0.825)/p_scale; 
+    TIM4->CCR1=T4full;
+    TIM3->CCR1=T3full;
+}
+
+void bubuStop(void){
+    TIM4->CCR1=0;
+    TIM3->CCR1=0; 
+}
+
+void bubuLeftfront(void){
+    TIM4->CCR1=T4full;
+    TIM3->CCR1=T3full*s; 
+}
+
+void bubuLeft(void){
+    TIM4->CCR1=T4full;
+    TIM3->CCR1=T3full*s*s; 
+}
+
+void bubuRightfront(void){
+    TIM4->CCR1=T4full*s*s;
+    TIM3->CCR1=T3full; 
+}
+void bubuRight(void){
+    TIM4->CCR1=T4full*s*s*s;
+    TIM3->CCR1=T3full; 
+}
+/*
 static char* itoa(int value, char* result, int base)
 {
 	if (base < 2 || base > 36) {
@@ -60,7 +108,7 @@ static char* itoa(int value, char* result, int base)
 		return result;
 	}
 	char *ptr = result, *ptr1 = result, tmp_char;
-	int tmp_value;
+	int tmp_value;RCC_Configuration
 
 	do {
 		tmp_value = value;
@@ -76,7 +124,7 @@ static char* itoa(int value, char* result, int base)
 		*ptr1++ = tmp_char;
 	}
 	return result;
-}
+}*/
 void
 prvInit()
 {
@@ -197,6 +245,30 @@ static void ButtonEventTask(void *pvParameters)
 		}
 	}
 }
+
+void USART1_Configuration(void)
+{
+    USART_InitTypeDef USART_InitStructure;
+
+    /* USARTx configuration ------------------------------------------------------*/
+    /* USARTx configured as follow:
+     *  - BaudRate = 9600 baud
+     *  - Word Length = 8 Bits
+     *  - One Stop Bit
+     *  - No parity
+     *  - Hardware flow control disabled (RTS and CTS signals)
+     *  - Receive and transmit enabled
+     */
+    USART_InitStructure.USART_BaudRate = 57600;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_Init(USART1, &USART_InitStructure);
+    USART_Cmd(USART1, ENABLE);
+}
+
 void RCC_Configuration(void)
 {
       /* --------------------------- System Clocks Configuration -----------------*/
@@ -223,28 +295,126 @@ void GPIO_Configuration(void)
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1);  // USART1_RX
 }
 
-void USART1_Configuration(void)
+void RCC_Configuration1(void)
 {
-    USART_InitTypeDef USART_InitStructure;
-
-    /* USARTx configuration ------------------------------------------------------*/
-    /* USARTx configured as follow:
-     *  - BaudRate = 9600 baud
-     *  - Word Length = 8 Bits
-     *  - One Stop Bit
-     *  - No parity
-     *  - Hardware flow control disabled (RTS and CTS signals)
-     *  - Receive and transmit enabled
-     */
-    USART_InitStructure.USART_BaudRate = 115200;
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-    USART_InitStructure.USART_StopBits = USART_StopBits_1;
-    USART_InitStructure.USART_Parity = USART_Parity_No;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-    USART_Init(USART1, &USART_InitStructure);
-    USART_Cmd(USART1, ENABLE);
+	RCC_AHB1PeriphClockCmd( RCC_AHB1Periph_GPIOB , ENABLE );//Enalbe AHB for GPIOB
+	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM4, ENABLE );//Enable APB for TIM4
 }
+
+void RCC_Configuration2(void)
+{
+	RCC_AHB1PeriphClockCmd( RCC_AHB1Periph_GPIOB , ENABLE );//Enalbe AHB for GPIOB
+	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM3, ENABLE );//Enable APB for TIM4
+}
+
+void RCC_Configuration3(void)
+{
+      /* USART1 clock enable */
+      RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+      /* GPIOA clock enable */
+      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+}
+
+/**
+  * @brief  configure the PD12~15 to Timers
+  * @param  None
+  * @retval None
+  */
+  
+void GPIO_Configuration1(void){
+	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
+	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_TIM4); 
+	// set GPIOD_Pin12 to AF_TIM4
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_6;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;            
+	// Alt Function - Push Pull
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init( GPIOB, &GPIO_InitStructure );  
+}
+    
+void GPIO_Configuration2(void){
+	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
+	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource4, GPIO_AF_TIM3); 
+	// set GPIOD_Pin12 to AF_TIM4
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_4;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;           
+	 // Alt Function - Push Pull
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init( GPIOB, &GPIO_InitStructure );  
+	
+		
+
+   
+}
+
+/**
+  * @brief  configure the TIM4 for PWM mode
+  * @param  None
+  * @retval None
+  */
+void TIM_Configuration1(void)
+{
+
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+	TIM_OCInitTypeDef TIM_OCInitStruct;
+	// Let PWM frequency equal 100Hz.
+	// Let period equal 1000. Therefore, 
+	//timer runs from zero to 1000. Gives 0.1Hz resolution.
+	
+	// Solving for prescaler gives 240.
+	TIM_TimeBaseStructInit( &TIM_TimeBaseInitStruct );
+	TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV4;
+	TIM_TimeBaseInitStruct.TIM_Period = (period - 1)/p_scale;   
+	//84000000/1680*1000=50hz  20ms for cycle
+	TIM_TimeBaseInitStruct.TIM_Prescaler = prescalar - 1; 
+	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;    
+	TIM_TimeBaseInit( TIM4, &TIM_TimeBaseInitStruct );
+	TIM_OCStructInit( &TIM_OCInitStruct );
+	TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
+	// Initial duty cycle equals 0%. Value can range from zero to 65535.
+	//TIM_Pulse = TIM4_CCR1 register (16 bits)
+	TIM_OCInitStruct.TIM_Pulse = 0; //(0=Always Off, 65535=Always On)
+	TIM_OC1Init( TIM4, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_Cmd( TIM4, ENABLE );
+}
+
+void TIM_Configuration2(void)
+{
+
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+	TIM_OCInitTypeDef TIM_OCInitStruct;
+	// Let PWM frequency equal 100Hz.
+	// Let period equal 1000. Therefore, 
+	//timer runs from zero to 1000. Gives 0.1Hz resolution.
+	
+	// Solving for prescaler gives 240.
+	TIM_TimeBaseStructInit( &TIM_TimeBaseInitStruct );
+	TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV4;
+	TIM_TimeBaseInitStruct.TIM_Period = (period - 1)/p_scale;   
+	//84000000/1680*1000=50hz  20ms for cycle
+	TIM_TimeBaseInitStruct.TIM_Prescaler = prescalar  - 1; 
+	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;    
+	TIM_TimeBaseInit( TIM3, &TIM_TimeBaseInitStruct );
+	TIM_OCStructInit( &TIM_OCInitStruct );
+	TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
+	// Initial duty cycle equals 0%. Value can range from zero to 65535.
+	//TIM_Pulse = TIM4_CCR1 register (16 bits)
+	TIM_OCInitStruct.TIM_Pulse = 0; //(0=Always Off, 65535=Always On)
+	TIM_OC1Init( TIM3, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_OC2Init( TIM3, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_OC3Init( TIM3, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_OC4Init( TIM3, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_Cmd( TIM3, ENABLE );
+}
+
 void USART1_puts(char* s)
 {
     while(*s) {
@@ -253,8 +423,9 @@ void USART1_puts(char* s)
         s++;
     }
 }
-static void UsartTask(void *pvParameters)
+static void BuBuTask(void *pvParameters)
 {
+/*
     RCC_Configuration();
     GPIO_Configuration();
     USART1_Configuration();
@@ -262,7 +433,7 @@ static void UsartTask(void *pvParameters)
     USART1_puts("Hello World!\r\n");
     USART1_puts("Just for STM32F429I Discovery verify USART1 with USB TTL Cable\r\n");
 
-	char strLcd[20]="";
+	char strLcd[20]="";e4
 	int i=0;
     while(1)
     {
@@ -280,6 +451,87 @@ static void UsartTask(void *pvParameters)
         while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
         USART_SendData(USART1, t);		
     }
+
+*/
+
+  volatile int i;
+  int n = 1;
+  int x = 1;
+  int c = 1;
+  int pulse=42;
+  int Button=0;
+
+  //Timer4
+  RCC_Configuration1();
+  TIM_Configuration1();
+  GPIO_Configuration1();
+  
+  //Timer3
+  RCC_Configuration2();
+  TIM_Configuration2();
+  GPIO_Configuration2();
+
+
+  
+  //USART
+  RCC_Configuration();
+  GPIO_Configuration();
+  USART1_Configuration();
+
+  //TIM4 for left  DC motor
+  //TIM3 for right DC motor
+  
+  TIM4->CCR1=0; //right
+  TIM3->CCR1=0; //left
+
+  while(1){  // Do not exit
+
+      //uint8_t button1;
+      //button1 = GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_13);
+
+      while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
+      char t = USART_ReceiveData(USART1);
+      while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+      USART_SendData(USART1,t);
+
+      if( t == 'B' ){
+          bubuStop();
+      }
+
+      if( t == 'A' ){
+
+       	  bubuGo();
+          while (1 ){
+                  
+		  
+	          while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
+              char t = USART_ReceiveData(USART1);
+                  
+              if( t == '3'){
+		          bubuGo();
+              }
+
+		      if( t == '2' ){
+		          bubuLeftfront();
+			  }
+		      if( t == '4' ){
+		          bubuRightfront();
+		      }
+		      if( t == '1' ){
+		          bubuLeft();
+		      }
+  			  if( t == '5' ){
+				  bubuRight(); 
+		      }
+			  if (t == 'B'){
+				  bubuStop();
+				  break;
+		  	  }
+		  
+	     }
+	  }
+
+   }//while
 }
 static void Gyroscope_Init(void)
 {
@@ -403,12 +655,12 @@ int main(void)
 	xTaskCreate(DrawGraphTask, (char *) "Draw Graph Task", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 */
-	xTaskCreate(UsartTask, (char *) "USART", 256,
+	xTaskCreate(BuBuTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
-
+/*
 	xTaskCreate(GyroscopeTask, (char *) "Gyroscope", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
-
+*/
 	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
         RNG_Cmd(ENABLE);
 

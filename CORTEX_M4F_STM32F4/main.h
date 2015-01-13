@@ -34,10 +34,13 @@
 #include "stm32f429i_discovery_lcd.h"
 #include "stm32f429i_discovery_ioe.h"
 #include "stm32f429i_discovery_l3gd20.h"
-
+#include "stm32f4xx_tim.h"
 
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
+#define TIM_ARR                          (uint16_t)1999
+#define TIM_CCR                          (uint16_t)1000
+
 /* Exported macro ------------------------------------------------------------*/
 /* Exported functions ------------------------------------------------------- */
 
