@@ -67,6 +67,8 @@ const int period = 1680 ;
 const int prescalar = 1000 * 2 ;
 const int T4full = 1680 * 2 ;
 const int T3full = 1680 ;
+const int T2full = 1680 ;
+const int T5full = 1680 ;
 const float s = 0.6 ;
 
 
@@ -75,11 +77,15 @@ void bubuGo(void){
     //TIM3->CCR1=((period/3)*0.825)/p_scale; 
     TIM4->CCR1=T4full;
     TIM3->CCR1=T3full;
+    TIM2->CCR2=T2full;
+    TIM5->CCR3=T5full;
 }
 
 void bubuStop(void){
     TIM4->CCR1=0;
     TIM3->CCR1=0; 
+    TIM2->CCR2=0; 
+    TIM5->CCR3=0; 
 }
 
 void bubuLeftfront(void){
@@ -90,6 +96,10 @@ void bubuLeftfront(void){
 void bubuLeft(void){
     TIM4->CCR1=T4full;
     TIM3->CCR1=T3full*s*s; 
+
+TIM2->CCR1=840;
+TIM5->CCR1=840;
+
 }
 
 void bubuRightfront(void){
@@ -295,24 +305,28 @@ void GPIO_Configuration(void)
     GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1);  // USART1_RX
 }
 
-void RCC_Configuration1(void)
+void RCC_Configuration4(void)
 {
 	RCC_AHB1PeriphClockCmd( RCC_AHB1Periph_GPIOB , ENABLE );//Enalbe AHB for GPIOB
 	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM4, ENABLE );//Enable APB for TIM4
 }
 
+void RCC_Configuration3(void)
+{
+	RCC_AHB1PeriphClockCmd( RCC_AHB1Periph_GPIOB , ENABLE );//Enalbe AHB for GPIOB
+	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM3, ENABLE );//Enable APB for TIM3
+}
+
 void RCC_Configuration2(void)
 {
 	RCC_AHB1PeriphClockCmd( RCC_AHB1Periph_GPIOB , ENABLE );//Enalbe AHB for GPIOB
-	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM3, ENABLE );//Enable APB for TIM4
+	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM2, ENABLE );//Enable APB for TIM2
 }
 
-void RCC_Configuration3(void)
+void RCC_Configuration5(void)
 {
-      /* USART1 clock enable */
-      RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-      /* GPIOA clock enable */
-      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	RCC_AHB1PeriphClockCmd( RCC_AHB1Periph_GPIOA , ENABLE );//Enalbe AHB for GPIOB
+	RCC_APB1PeriphClockCmd( RCC_APB1Periph_TIM5, ENABLE );//Enable APB for TIM2
 }
 
 /**
@@ -321,7 +335,7 @@ void RCC_Configuration3(void)
   * @retval None
   */
   
-void GPIO_Configuration1(void){
+void GPIO_Configuration4(void){
 	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
 	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource6, GPIO_AF_TIM4); 
@@ -335,7 +349,7 @@ void GPIO_Configuration1(void){
 	GPIO_Init( GPIOB, &GPIO_InitStructure );  
 }
     
-void GPIO_Configuration2(void){
+void GPIO_Configuration3(void){
 	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
 	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
 	GPIO_PinAFConfig(GPIOB, GPIO_PinSource4, GPIO_AF_TIM3); 
@@ -347,18 +361,43 @@ void GPIO_Configuration2(void){
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init( GPIOB, &GPIO_InitStructure );  
-	
-		
-
+   
+}
+void GPIO_Configuration2(void){
+	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
+	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
+	GPIO_PinAFConfig(GPIOB, GPIO_PinSource3, GPIO_AF_TIM2); 
+	// set GPIOD_Pin2 to AF_TIM2
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_3;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;           
+	 // Alt Function - Push Pull
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init( GPIOB, &GPIO_InitStructure );  
    
 }
 
+void GPIO_Configuration5(void){
+	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
+	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource2, GPIO_AF_TIM5); 
+	// set GPIOD_Pin2 to AF_TIM2
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_2;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;           
+	 // Alt Function - Push Pull
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init( GPIOA, &GPIO_InitStructure );  
+   
+}
 /**
   * @brief  configure the TIM4 for PWM mode
   * @param  None
   * @retval None
   */
-void TIM_Configuration1(void)
+void TIM_Configuration4(void)
 {
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
@@ -385,7 +424,7 @@ void TIM_Configuration1(void)
 	TIM_Cmd( TIM4, ENABLE );
 }
 
-void TIM_Configuration2(void)
+void TIM_Configuration3(void)
 {
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
@@ -414,6 +453,67 @@ void TIM_Configuration2(void)
 	TIM_OC4Init( TIM3, &TIM_OCInitStruct ); // Channel 1  LED
 	TIM_Cmd( TIM3, ENABLE );
 }
+
+void TIM_Configuration2(void)
+{
+
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+	TIM_OCInitTypeDef TIM_OCInitStruct;
+	// Let PWM frequency equal 100Hz.
+	// Let period equal 1000. Therefore, 
+	//timer runs from zero to 1000. Gives 0.1Hz resolution.
+	
+	// Solving for prescaler gives 240.
+	TIM_TimeBaseStructInit( &TIM_TimeBaseInitStruct );
+	TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV4;
+	TIM_TimeBaseInitStruct.TIM_Period = (period - 1)/p_scale;   
+	//84000000/1680*1000=50hz  20ms for cycle
+	TIM_TimeBaseInitStruct.TIM_Prescaler = prescalar  - 1; 
+	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;    
+	TIM_TimeBaseInit( TIM2, &TIM_TimeBaseInitStruct );
+	TIM_OCStructInit( &TIM_OCInitStruct );
+	TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
+	// Initial duty cycle equals 0%. Value can range from zero to 65535.
+	//TIM_Pulse = TIM4_CCR1 register (16 bits)
+	TIM_OCInitStruct.TIM_Pulse = 0; //(0=Always Off, 65535=Always On)
+//	TIM_OC1Init( TIM2, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_OC2Init( TIM2, &TIM_OCInitStruct ); // Channel 1  LED
+//	TIM_OC3Init( TIM2, &TIM_OCInitStruct ); // Channel 1  LED
+//	TIM_OC4Init( TIM2, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_Cmd( TIM2, ENABLE );
+}
+
+void TIM_Configuration5(void)
+{
+
+	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
+	TIM_OCInitTypeDef TIM_OCInitStruct;
+	// Let PWM frequency equal 100Hz.
+	// Let period equal 1000. Therefore, 
+	//timer runs from zero to 1000. Gives 0.1Hz resolution.
+	
+	// Solving for prescaler gives 240.
+	TIM_TimeBaseStructInit( &TIM_TimeBaseInitStruct );
+	TIM_TimeBaseInitStruct.TIM_ClockDivision = TIM_CKD_DIV4;
+	TIM_TimeBaseInitStruct.TIM_Period = (period - 1)/p_scale;   
+	//84000000/1680*1000=50hz  20ms for cycle
+	TIM_TimeBaseInitStruct.TIM_Prescaler = prescalar  - 1; 
+	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;    
+	TIM_TimeBaseInit( TIM5, &TIM_TimeBaseInitStruct );
+	TIM_OCStructInit( &TIM_OCInitStruct );
+	TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
+	// Initial duty cycle equals 0%. Value can range from zero to 65535.
+	//TIM_Pulse = TIM4_CCR1 register (16 bits)
+	TIM_OCInitStruct.TIM_Pulse = 0; //(0=Always Off, 65535=Always On)
+	//TIM_OC1Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
+	//TIM_OC2Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_OC3Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
+	//TIM_OC4Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_Cmd( TIM5, ENABLE );
+}
+
 
 void USART1_puts(char* s)
 {
@@ -462,15 +562,24 @@ static void BuBuTask(void *pvParameters)
   int Button=0;
 
   //Timer4
-  RCC_Configuration1();
-  TIM_Configuration1();
-  GPIO_Configuration1();
+  RCC_Configuration4();
+  TIM_Configuration4();
+  GPIO_Configuration4();
   
   //Timer3
+  RCC_Configuration3();
+  TIM_Configuration3();
+  GPIO_Configuration3();
+
+  //Timer2
   RCC_Configuration2();
   TIM_Configuration2();
   GPIO_Configuration2();
 
+  //Timer5
+  RCC_Configuration5();
+  TIM_Configuration5();
+  GPIO_Configuration5();
 
   
   //USART
@@ -483,7 +592,8 @@ static void BuBuTask(void *pvParameters)
   
   TIM4->CCR1=0; //right
   TIM3->CCR1=0; //left
-
+  TIM2->CCR2=T2full;
+  TIM5->CCR3=T5full;
   while(1){  // Do not exit
 
       //uint8_t button1;
@@ -571,6 +681,7 @@ static void Gyroscope_Update(void)
 
 	for (int i = 0; i < 3; i++){
 		axes[i] = a[i] / 114.285f;
+
 //		axes[i] += a[i]*delta / 114.285f;
 	}
 
