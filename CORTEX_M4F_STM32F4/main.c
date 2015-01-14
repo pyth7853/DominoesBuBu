@@ -55,13 +55,6 @@
 xQueueHandle t_queue; /* Traffic light queue. */
 xQueueHandle t_mutex; /* Traffic light mutex. */
 
-static int traffic_index = 0; 
-static int button_change_traffic = 0;
-static int states[] = {TRAFFIC_RED, TRAFFIC_YELLOW, TRAFFIC_GREEN, 
-							TRAFFIC_YELLOW};
-static float axes[3] = {0};
-int count = 0;
-
 const int p_scale = 1;
 const int period = 1680 ;
 const int prescalar = 1000 ;
@@ -71,8 +64,7 @@ const int T2full = 1680 ;
 const int T5full = 1680 ;
 const float s = 0.6 ;
 
-//58~15   up
-// 50 170   down
+static char cmd='#';
 
 void bubuGo(void){
     //TIM4->CCR1=((period/2.5)*0.825)/p_scale; 
@@ -106,32 +98,6 @@ void bubuRight(void){
     TIM4->CCR1=T4full*s*s*s;
     TIM3->CCR1=T3full; 
 }
-/*
-static char* itoa(int value, char* result, int base)
-{
-	if (base < 2 || base > 36) {
-		*result = '\0';
-		return result;
-	}
-	char *ptr = result, *ptr1 = result, tmp_char;
-	int tmp_value;RCC_Configuration
-
-	do {
-		tmp_value = value;
-		value /= base;
-		*ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
-	} while (value);
-
-	if (tmp_value < 0) *ptr++ = '-';
-	*ptr-- = '\0';
-	while (ptr1 < ptr) {
-		tmp_char = *ptr;
-		*ptr-- = *ptr1;
-		*ptr1++ = tmp_char;
-	}
-	return result;
-}*/
-
 void USART1_Configuration(void)
 {
     USART_InitTypeDef USART_InitStructure;
@@ -370,51 +336,46 @@ static void BuBuTask(void *pvParameters)
   TIM_Configuration3();
   GPIO_Configuration3();
   
-  //USART
-  RCC_Configuration();
-  GPIO_Configuration();
-  USART1_Configuration();
-
+  
+  char localCmd='#';
   while(1){  // Do not exit
-
-      while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
-      char t = USART_ReceiveData(USART1);
-      while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-      USART_SendData(USART1,t);
-
-      if( t == 'B' ){
+      xSemaphoreTake(t_mutex, portMAX_DELAY);
+	  localCmd = cmd;
+	  xSemaphoreGive(t_mutex);
+ 
+      if( localCmd == 'B' ){
           bubuStop();
       }
 
-      if( t == 'A' ){
+      if( localCmd == 'A' ){
 
-       	  bubuGo();
+          bubuGo();
           while (1 ){
                   
 		  
-	          while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
-              char t = USART_ReceiveData(USART1);
+		  	xSemaphoreTake(t_mutex, portMAX_DELAY);			
+		  	localCmd = cmd;
+		  	xSemaphoreGive(t_mutex);
                   
-              if( t == '3'){
-		          bubuGo();
-              }
-
-		      if( t == '2' ){
-		          bubuLeftfront();
-			  }
-		      if( t == '4' ){
-		          bubuRightfront();
-		      }
-		      if( t == '1' ){
-		          bubuLeft();
-		      }
-  			  if( t == '5' ){
-				  bubuRight(); 
-		      }
-			  if (t == 'B'){
-				  bubuStop();
-				  break;
-		  	  }
+          	if( localCmd == '3'){
+		      bubuGo();
+          	}
+	      	if( localCmd == '2' ){
+              bubuLeftfront();
+	      	}
+		  	if( localCmd == '4' ){
+		      bubuRightfront();
+		  	}
+		  	if( localCmd == '1' ){
+		      bubuLeft();
+		  	}
+  		  	if( localCmd == '5' ){
+		      bubuRight(); 
+		 	}
+	 	  	if( localCmd == 'B'){
+			  bubuStop();
+			  break;
+		 	}
 		  
 	     }
 	  }
@@ -422,32 +383,60 @@ static void BuBuTask(void *pvParameters)
    }//while
 }
 static void BuBuBeatTask(void *pvParameters){
-  //Timer2
+    //Timer2
     RCC_Configuration2();
     TIM_Configuration2();
     GPIO_Configuration2();
+    char localCmd='%';
     while(1){
-	    TIM2->CCR2=42;
- 		vTaskDelay(1000);
-		TIM2->CCR2=210;
-        vTaskDelay(1000);
+	    xSemaphoreTake(t_mutex, portMAX_DELAY);
+		localCmd = cmd;
+		xSemaphoreGive(t_mutex);
+			
+	    if(localCmd=='C'){
+	        TIM2->CCR2=42;
+ 		    vTaskDelay(1000);
+		    TIM2->CCR2=210;
+            vTaskDelay(1000);
+	  	}
 	}
 
 }
 
 static void BuBuSplasherTask(void *pvParameters){
-  RCC_Configuration3();
-  TIM_Configuration3();
-  GPIO_Configuration3();
+	RCC_Configuration3();
+	TIM_Configuration3();
+    GPIO_Configuration3();
+    char localCmd='%';
     while(1){
-	    TIM3->CCR2=42;
- 		vTaskDelay(1000);
-		TIM3->CCR2=210;
-        vTaskDelay(1000);
+	    xSemaphoreTake(t_mutex, portMAX_DELAY);
+		localCmd = cmd;
+		xSemaphoreGive(t_mutex);
+			
+
+		if(localCmd=='C'){
+	    	TIM3->CCR2=42;
+ 			vTaskDelay(1000);
+			TIM3->CCR2=210;
+        	vTaskDelay(1000);
+		}
 	}
 
 }
+static void uartTask(void *pvParameters){
 
+    //USART
+    RCC_Configuration();
+    GPIO_Configuration();
+    USART1_Configuration();
+    while(1){
+			while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
+			xSemaphoreTake(t_mutex, portMAX_DELAY);
+			cmd =  USART_ReceiveData(USART1);
+			xSemaphoreGive(t_mutex);
+	}
+
+}
 
 //Main Function
 int main(void)
@@ -472,6 +461,9 @@ int main(void)
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	xTaskCreate(BuBuSplasherTask, (char *) "USART", 256,
+		   	NULL, tskIDLE_PRIORITY + 2, NULL);
+
+	xTaskCreate(uartTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
