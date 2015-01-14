@@ -58,8 +58,8 @@ xQueueHandle t_mutex; /* Traffic light mutex. */
 const int p_scale = 1;
 const int period = 1680 ;
 const int prescalar = 1000 ;
-const int T4full = 1680 * 2 ;
-const int T3full = 1680 ;
+const int T4full = 1680 * 2*0.16;
+const int T3full = 1680 *0.32 ;
 const int T2full = 1680 ;
 const int T5full = 1680 ;
 const float s = 0.6 ;
@@ -395,10 +395,14 @@ static void BuBuBeatTask(void *pvParameters){
 			
 	    if(localCmd=='C'){
 	        TIM2->CCR2=60;
+ 		    vTaskDelay(450);
+		    TIM2->CCR2=100;
+            vTaskDelay(250);
+	  	}else{
+	        TIM2->CCR2=60;
  		    vTaskDelay(1000);
-		    TIM2->CCR2=96;
-            vTaskDelay(1000);
-	  	}
+
+		}
 	}
 
 }
@@ -414,10 +418,13 @@ static void BuBuSplasherTask(void *pvParameters){
 		xSemaphoreGive(t_mutex);
 			
 		if(localCmd=='C'){
+	    	TIM3->CCR2=160;
+ 			vTaskDelay(350);
+			TIM3->CCR2=115;
+        	vTaskDelay(350);
+		}else{
 	    	TIM3->CCR2=90;
  			vTaskDelay(1000);
-			TIM3->CCR2=220;
-        	vTaskDelay(1000);
 		}
 	}
 
