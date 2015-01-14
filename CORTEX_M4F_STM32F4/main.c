@@ -131,126 +131,6 @@ static char* itoa(int value, char* result, int base)
 	}
 	return result;
 }*/
-void
-prvInit()
-{
-	//LCD init
-	LCD_Init();
-	IOE_Config();
-	LTDC_Cmd( ENABLE );
-
-	LCD_LayerInit();
-	LCD_SetLayer( LCD_FOREGROUND_LAYER );
-	LCD_Clear( LCD_COLOR_BLACK );
-	LCD_SetTextColor( LCD_COLOR_WHITE );
-
-	//Button
-	STM_EVAL_PBInit( BUTTON_USER, BUTTON_MODE_GPIO );
-}
-
-static void GetTrafficState(int change_state, int *v_state, int *h_state)
-{
-
-	switch (change_state) {
-	case TRAFFIC_RED:
-		*v_state = TRAFFIC_RED;
-		*h_state = TRAFFIC_GREEN;
-		break;
-	case TRAFFIC_YELLOW:
-		if (*v_state == TRAFFIC_GREEN)
-			*v_state = TRAFFIC_YELLOW;
-		else
-			*h_state = TRAFFIC_YELLOW;
-		break;
-	case TRAFFIC_GREEN:
-		*v_state = TRAFFIC_GREEN;
-		*h_state = TRAFFIC_RED;
-		break;
-	default:
-		ReportError("out of range");
-		break;
-	}
-}
-
-static void DrawGraphTask( void *pvParameters)
-{
-	const portTickType ticks = 100 / portTICK_RATE_MS;
-	int value;
-	int traffic_v_state = TRAFFIC_GREEN;
-	int traffic_h_state = TRAFFIC_RED;
-
-	portBASE_TYPE status;
-
-	DrawBackground();
-
-	while ( 1 ) {
-		/*
-		 * Check if the traffic changed event is sent to
-		 * the queue. If so, we need to change the traffic
-		 * light.
-		 */
-		status = xQueueReceive(t_queue, &value, ticks);
-
-		if (status == pdPASS) {
-			GetTrafficState(value, &traffic_v_state, 
-						&traffic_h_state);
-		}
-
-		MoveCar(traffic_v_state, traffic_h_state);
-	}
-}
-
-static void ChgTrafficLightTask(void *pvParameters)
-{
-	int num_ticks;
-	int states_num = sizeof(states) / sizeof(states[0]);
-
-	portBASE_TYPE status;
-	portTickType ticks = TRAFFIC_GREEN_TICK;
-
-	while ( 1 ) {
-		ticks = (states[traffic_index] == TRAFFIC_YELLOW ? 
-			TRAFFIC_YELLOW_TICK : TRAFFIC_GREEN_TICK);
-
-		num_ticks = ticks / TRAFFIC_TICK_SLICE;
-
-		status = xQueueSendToBack(t_queue, &states[traffic_index++], 0);
-	
-		if (status != pdPASS)
-			ReportError("Cannot send to the queue!");
-
-		if (traffic_index >= states_num)
-			traffic_index = 0;
-
-		while (num_ticks--) { 
-			xSemaphoreTake(t_mutex, portMAX_DELAY);
-			
-			if (button_change_traffic) {
-				button_change_traffic = 0;
-				xSemaphoreGive(t_mutex);
-				break;
-			}
-
-			xSemaphoreGive(t_mutex);
-
-			vTaskDelay(TRAFFIC_TICK_SLICE);
-		}
-	}
-}
-
-static void ButtonEventTask(void *pvParameters)
-{
-	while (1) {
-		if( STM_EVAL_PBGetState( BUTTON_USER ) ){
-
-			while( STM_EVAL_PBGetState( BUTTON_USER ) );
-
-			xSemaphoreTake(t_mutex, portMAX_DELAY);
-			button_change_traffic = 1;
-			xSemaphoreGive(t_mutex);
-		}
-	}
-}
 
 void USART1_Configuration(void)
 {
@@ -521,35 +401,6 @@ void USART1_puts(char* s)
 }
 static void BuBuTask(void *pvParameters)
 {
-
-    RCC_Configuration();
-    GPIO_Configuration();
-    USART1_Configuration();
-
-    USART1_puts("Hello World!\r\n");
-    USART1_puts("Just for STM32F429I Discovery verify USART1 with USB TTL Cable\r\n");
-
-	char strLcd[20]="";
-	int i=0;
-    while(1)
-    {
-        while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
-        char t = USART_ReceiveData(USART1);
-    	*(strLcd+i) = t;
-		DrawUsartReceive(strLcd);
-		i += 1;
-        if ((t == '\r')) {	        
-            while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-		    USART_SendData(USART1, t);	
-            t = '\n';
-		
-		}
-        while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
-        USART_SendData(USART1, t);		
-    }
-
-
-
   volatile int i;
   int n = 1;
   int x = 1;
@@ -639,100 +490,6 @@ static void BuBuBeatTask(void *pvParameters){
 	}
 
 }
-static void Gyroscope_Init(void)
-{
-	L3GD20_InitTypeDef L3GD20_InitStructure;
-	L3GD20_InitStructure.Power_Mode = L3GD20_MODE_ACTIVE;
-	L3GD20_InitStructure.Output_DataRate = L3GD20_OUTPUT_DATARATE_1;
-	L3GD20_InitStructure.Axes_Enable = L3GD20_AXES_ENABLE;
-	L3GD20_InitStructure.Band_Width = L3GD20_BANDWIDTH_4;
-	L3GD20_InitStructure.BlockData_Update = L3GD20_BlockDataUpdate_Continous;
-	L3GD20_InitStructure.Endianness = L3GD20_BLE_LSB;
-	L3GD20_InitStructure.Full_Scale = L3GD20_FULLSCALE_250;
-	L3GD20_Init(&L3GD20_InitStructure);
-
-	L3GD20_FilterConfigTypeDef L3GD20_FilterStructure;
-	L3GD20_FilterStructure.HighPassFilter_Mode_Selection = L3GD20_HPM_NORMAL_MODE_RES;
-	L3GD20_FilterStructure.HighPassFilter_CutOff_Frequency = L3GD20_HPFCF_0;
-	L3GD20_FilterConfig(&L3GD20_FilterStructure);
-	L3GD20_FilterCmd(L3GD20_HIGHPASSFILTER_ENABLE);
-}
-static void Gyroscope_Update(void)
-{
-	uint8_t tmp[6] = {0};
-	int16_t a[3] = {0};
-	uint8_t tmpreg = 0;
-
-	L3GD20_Read(&tmpreg, L3GD20_CTRL_REG4_ADDR, 1);
-	L3GD20_Read(tmp, L3GD20_OUT_X_L_ADDR, 6);
-
-	/* check in the control register 4 the data alignment (Big Endian or Little Endian)*/
-	if (!(tmpreg & 0x40)) {
-		for (int i = 0; i < 3; i++)
-			a[i] = (int16_t)(((uint16_t)tmp[2 * i + 1] << 8) | (uint16_t)tmp[2 * i]);
-	} else {
-		for (int i = 0; i < 3; i++)
-			a[i] = (int16_t)(((uint16_t)tmp[2 * i] << 8) | (uint16_t)tmp[2 * i + 1]);
-	}
-
-	for (int i = 0; i < 3; i++){
-		axes[i] = a[i] / 114.285f;
-//		axes[i] += a[i]*delta / 114.285f;
-	}
-
-}
-static void Gyroscope_Render(void)
-{
-	LCD_ClearLine(LCD_LINE_5);
-	LCD_ClearLine(LCD_LINE_6);
-	LCD_ClearLine(LCD_LINE_7);
-
-	LCD_SetTextColor( LCD_COLOR_RED );
-
-	char str[16] = "X: ";
-	itoa(axes[0], str + 3, 10);
-	LCD_DisplayStringLine(LCD_LINE_5, str);
-	str[0] = 'Y';
-	itoa(axes[1], str + 3, 10);
-	LCD_DisplayStringLine(LCD_LINE_6, str);
-	str[0] = 'Z';
-	itoa(axes[2], str + 3, 10);
-	LCD_DisplayStringLine(LCD_LINE_7, str);
-
-	
-
-	if(axes[2]>100){
-		LCD_SetTextColor( 0x227700);
-		LCD_DrawFullRect( 50+count, 50, 20, 10);
-		count++;
-	}
-
-	
-	if(axes[2]< -100){
-		LCD_SetTextColor( 0xFFFFFF);
-		LCD_DrawFullRect( 50+count, 10, 20, 10);
-		count++;
-	}
-	if(axes[0] > 250 || 	axes[0] < -250){
-
-		LCD_Clear( 0xEEEE00 );
-	 	count = 0;
-	}
-	if(axes[1] > 250 || 	axes[1] < -250){
-
-		LCD_Clear( LCD_COLOR_RED );
-	 	count = 0;
-	}
-}
-
-static void GyroscopeTask(void *pvParameters)
-{
-	Gyroscope_Init();
-	while(1){
-		Gyroscope_Update();
-		Gyroscope_Render();   
-	}
-}
 
 //Main Function
 int main(void)
@@ -750,17 +507,6 @@ int main(void)
 		while(1);
 	}
 
-	prvInit();
-/*
-	xTaskCreate(ChgTrafficLightTask, "Traffic Light Task", 256, 
-			( void * ) NULL, tskIDLE_PRIORITY + 1, NULL);
-
-	xTaskCreate(ButtonEventTask, (char *) "Button Event Task", 256,
-		   	NULL, tskIDLE_PRIORITY + 1, NULL);
-
-	xTaskCreate(DrawGraphTask, (char *) "Draw Graph Task", 256,
-		   	NULL, tskIDLE_PRIORITY + 2, NULL);
-*/
 	xTaskCreate(BuBuTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
@@ -769,10 +515,7 @@ int main(void)
 
 /*	xTaskCreate(BuBuSplasherTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);*/
-/*
-	xTaskCreate(GyroscopeTask, (char *) "Gyroscope", 256,
-		   	NULL, tskIDLE_PRIORITY + 2, NULL);
-*/
+
 	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
         RNG_Cmd(ENABLE);
 
