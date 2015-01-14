@@ -64,28 +64,28 @@ int count = 0;
 
 const int p_scale = 1;
 const int period = 1680 ;
-const int prescalar = 1000 * 2 ;
+const int prescalar = 1000 ;
 const int T4full = 1680 * 2 ;
 const int T3full = 1680 ;
 const int T2full = 1680 ;
 const int T5full = 1680 ;
 const float s = 0.6 ;
 
+//58~15   up
+// 50 170   down
 
 void bubuGo(void){
     //TIM4->CCR1=((period/2.5)*0.825)/p_scale; 
     //TIM3->CCR1=((period/3)*0.825)/p_scale; 
     TIM4->CCR1=T4full;
     TIM3->CCR1=T3full;
-    TIM2->CCR2=T2full;
-    TIM5->CCR3=T5full;
+//    TIM2->CCR2=T2full;
+//    TIM5->CCR2=T5full;
 }
 
 void bubuStop(void){
     TIM4->CCR1=0;
     TIM3->CCR1=0; 
-    TIM2->CCR2=0; 
-    TIM5->CCR3=0; 
 }
 
 void bubuLeftfront(void){
@@ -96,10 +96,6 @@ void bubuLeftfront(void){
 void bubuLeft(void){
     TIM4->CCR1=T4full;
     TIM3->CCR1=T3full*s*s; 
-
-TIM2->CCR1=840;
-TIM5->CCR1=840;
-
 }
 
 void bubuRightfront(void){
@@ -381,9 +377,9 @@ void GPIO_Configuration2(void){
 void GPIO_Configuration5(void){
 	GPIO_InitTypeDef GPIO_InitStructure;//Create GPIO_InitStructure 
 	GPIO_StructInit(&GPIO_InitStructure); // Reset GPIO_structure
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource2, GPIO_AF_TIM5); 
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource1, GPIO_AF_TIM5); 
 	// set GPIOD_Pin2 to AF_TIM2
-	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_2;
+	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_1;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;           
 	 // Alt Function - Push Pull
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -508,8 +504,8 @@ void TIM_Configuration5(void)
 	//TIM_Pulse = TIM4_CCR1 register (16 bits)
 	TIM_OCInitStruct.TIM_Pulse = 0; //(0=Always Off, 65535=Always On)
 	//TIM_OC1Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
-	//TIM_OC2Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
-	TIM_OC3Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
+	TIM_OC2Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
+	//TIM_OC3Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
 	//TIM_OC4Init( TIM5, &TIM_OCInitStruct ); // Channel 1  LED
 	TIM_Cmd( TIM5, ENABLE );
 }
@@ -525,7 +521,7 @@ void USART1_puts(char* s)
 }
 static void BuBuTask(void *pvParameters)
 {
-/*
+
     RCC_Configuration();
     GPIO_Configuration();
     USART1_Configuration();
@@ -533,7 +529,7 @@ static void BuBuTask(void *pvParameters)
     USART1_puts("Hello World!\r\n");
     USART1_puts("Just for STM32F429I Discovery verify USART1 with USB TTL Cable\r\n");
 
-	char strLcd[20]="";e4
+	char strLcd[20]="";
 	int i=0;
     while(1)
     {
@@ -552,7 +548,7 @@ static void BuBuTask(void *pvParameters)
         USART_SendData(USART1, t);		
     }
 
-*/
+
 
   volatile int i;
   int n = 1;
@@ -571,10 +567,7 @@ static void BuBuTask(void *pvParameters)
   TIM_Configuration3();
   GPIO_Configuration3();
 
-  //Timer2
-  RCC_Configuration2();
-  TIM_Configuration2();
-  GPIO_Configuration2();
+
 
   //Timer5
   RCC_Configuration5();
@@ -587,17 +580,7 @@ static void BuBuTask(void *pvParameters)
   GPIO_Configuration();
   USART1_Configuration();
 
-  //TIM4 for left  DC motor
-  //TIM3 for right DC motor
-  
-  TIM4->CCR1=0; //right
-  TIM3->CCR1=0; //left
-  TIM2->CCR2=T2full;
-  TIM5->CCR3=T5full;
   while(1){  // Do not exit
-
-      //uint8_t button1;
-      //button1 = GPIO_ReadInputDataBit(GPIOG, GPIO_Pin_13);
 
       while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
       char t = USART_ReceiveData(USART1);
@@ -643,6 +626,19 @@ static void BuBuTask(void *pvParameters)
 
    }//while
 }
+static void BuBuBeatTask(void *pvParameters){
+  //Timer2
+    RCC_Configuration2();
+    TIM_Configuration2();
+    GPIO_Configuration2();
+    while(1){
+	    TIM2->CCR2=42;
+ 		vTaskDelay(1000);
+		TIM2->CCR2=210;
+        vTaskDelay(1000);
+	}
+
+}
 static void Gyroscope_Init(void)
 {
 	L3GD20_InitTypeDef L3GD20_InitStructure;
@@ -681,7 +677,6 @@ static void Gyroscope_Update(void)
 
 	for (int i = 0; i < 3; i++){
 		axes[i] = a[i] / 114.285f;
-
 //		axes[i] += a[i]*delta / 114.285f;
 	}
 
@@ -768,6 +763,12 @@ int main(void)
 */
 	xTaskCreate(BuBuTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
+
+	xTaskCreate(BuBuBeatTask, (char *) "USART", 256,
+		   	NULL, tskIDLE_PRIORITY + 2, NULL);
+
+/*	xTaskCreate(BuBuSplasherTask, (char *) "USART", 256,
+		   	NULL, tskIDLE_PRIORITY + 2, NULL);*/
 /*
 	xTaskCreate(GyroscopeTask, (char *) "Gyroscope", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
