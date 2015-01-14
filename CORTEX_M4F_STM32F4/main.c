@@ -394,9 +394,9 @@ static void BuBuBeatTask(void *pvParameters){
 		xSemaphoreGive(t_mutex);
 			
 	    if(localCmd=='C'){
-	        TIM2->CCR2=42;
+	        TIM2->CCR2=60;
  		    vTaskDelay(1000);
-		    TIM2->CCR2=210;
+		    TIM2->CCR2=96;
             vTaskDelay(1000);
 	  	}
 	}
@@ -413,11 +413,10 @@ static void BuBuSplasherTask(void *pvParameters){
 		localCmd = cmd;
 		xSemaphoreGive(t_mutex);
 			
-
 		if(localCmd=='C'){
-	    	TIM3->CCR2=42;
+	    	TIM3->CCR2=90;
  			vTaskDelay(1000);
-			TIM3->CCR2=210;
+			TIM3->CCR2=220;
         	vTaskDelay(1000);
 		}
 	}
