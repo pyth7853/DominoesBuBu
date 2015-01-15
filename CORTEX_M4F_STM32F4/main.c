@@ -48,12 +48,16 @@
 //Library config for this project!!!!!!!!!!!
 #include "stm32f4xx_conf.h"
 
+
+//#define PHASE_DELAY 100
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 xQueueHandle t_queue; /* Traffic light queue. */
 xQueueHandle t_mutex; /* Traffic light mutex. */
+xQueueHandle c_mutex; /* Traffic light mutex. */
+xQueueHandle w_mutex; /* Traffic light mutex. */
 
 const int p_scale = 1;
 const int period = 1680 ;
@@ -65,12 +69,49 @@ const int T5full = 1680 ;
 const float s = 0.6 ;
 
 static char cmd='#';
+static int PHASE_DELAY = 2000;
+static int PHASE_DELAY_WISE = 2000;
+
+void gpio_init(){
+	// AHB clock
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
+	
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_11 | GPIO_Pin_12 | GPIO_Pin_9 | GPIO_Pin_10;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
+}
+
+void gpio_init_wise(){
+	// AHB clock
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOG, ENABLE);
+	
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+	GPIO_Init(GPIOG, &GPIO_InitStructure);
+}
+
+
+
+void Delay(uint32_t volatile DelayTime_uS){
+	uint32_t DelayTime = 0;
+	DelayTime = SystemCoreClock/1000000*DelayTime_uS;
+	for(;DelayTime != 0 ; DelayTime--)
+		__NOP();
+}
 
 void bubuGo(void){
     //TIM4->CCR1=((period/2.5)*0.825)/p_scale; 
     //TIM3->CCR1=((period/3)*0.825)/p_scale; 
-    TIM4->CCR1=T4full;
-    TIM3->CCR1=T3full;
+//TIM4->CCR1=T4full;
+  //  TIM3->CCR1=T3full;
 //    TIM2->CCR2=T2full;
 //    TIM5->CCR2=T5full;
 }
@@ -319,7 +360,7 @@ void USART1_puts(char* s)
 }
 static void BuBuTask(void *pvParameters)
 {
-  volatile int i;
+  /*volatile int i;
   int n = 1;
   int x = 1;
   int c = 1;
@@ -336,6 +377,8 @@ static void BuBuTask(void *pvParameters)
   TIM_Configuration3();
   GPIO_Configuration3();
   
+
+
   
   char localCmd='#';
   while(1){  // Do not exit
@@ -380,7 +423,7 @@ static void BuBuTask(void *pvParameters)
 	     }
 	  }
 
-   }//while
+   }  //while*/
 }
 static void BuBuBeatTask(void *pvParameters){
     //Timer2
@@ -439,11 +482,229 @@ static void uartTask(void *pvParameters){
 			while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
 			xSemaphoreTake(t_mutex, portMAX_DELAY);
 			cmd =  USART_ReceiveData(USART1);
-			xSemaphoreGive(t_mutex);
+			xSemaphoreGive(t_mutex);		
 	}
+}
+
+static void ControlTask(void * pvParameters){
+
+	char localCmd='%';
+	while(1){
+
+       xSemaphoreTake(t_mutex, portMAX_DELAY);
+       localCmd = cmd ;
+       xSemaphoreGive(t_mutex);
+      
+       if( localCmd == 'B' ){
+         xSemaphoreTake(c_mutex, portMAX_DELAY);
+	 	 PHASE_DELAY = 9999;
+	     xSemaphoreGive(c_mutex);
+	 
+	     xSemaphoreTake(w_mutex, portMAX_DELAY);
+	     PHASE_DELAY_WISE = 9999;
+	     xSemaphoreGive(w_mutex);
+       }
+
+       if( localCmd == 'A' ){
+	 
+         xSemaphoreTake(c_mutex, portMAX_DELAY);
+	     PHASE_DELAY = 100;
+	     xSemaphoreGive(c_mutex);  
+	     xSemaphoreTake(w_mutex, portMAX_DELAY);
+	     PHASE_DELAY_WISE = 100;
+	     xSemaphoreGive(w_mutex);              
+	     while(1){	  
+	         xSemaphoreTake(t_mutex, portMAX_DELAY);			
+	 		 localCmd = cmd;
+			 xSemaphoreGive(t_mutex);
+         
+           	 if( localCmd == '3'){
+ 	     		xSemaphoreTake(c_mutex, portMAX_DELAY);
+		        PHASE_DELAY = 100;
+	     		xSemaphoreGive(c_mutex); 
+	            xSemaphoreTake(w_mutex, portMAX_DELAY);
+	     		PHASE_DELAY_WISE = 100;
+	            xSemaphoreGive(w_mutex); 
+          	 }
+         	 if( localCmd == '2' ){
+            	xSemaphoreTake(c_mutex, portMAX_DELAY);
+			    PHASE_DELAY = 100;
+	    		xSemaphoreGive(c_mutex); 
+	    		xSemaphoreTake(w_mutex, portMAX_DELAY);
+			    PHASE_DELAY_WISE = 100 * 2;
+	    		xSemaphoreGive(w_mutex); 
+	 		}
+	 		if( localCmd == '4' ){
+	    		xSemaphoreTake(c_mutex, portMAX_DELAY);
+	    		PHASE_DELAY = 100 * 2;
+			    xSemaphoreGive(c_mutex); 	
+			    xSemaphoreTake(w_mutex, portMAX_DELAY);
+			    PHASE_DELAY_WISE = 100;
+			    xSemaphoreGive(w_mutex); 
+			}
+		    if( localCmd == '1' ){
+			    xSemaphoreTake(c_mutex, portMAX_DELAY);
+	    		PHASE_DELAY = 100;
+	    		xSemaphoreGive(c_mutex); 
+	    		xSemaphoreTake(w_mutex, portMAX_DELAY);
+	    		PHASE_DELAY_WISE = 100 * 2 * 2 ;
+	    		xSemaphoreGive(w_mutex); 
+	 		}
+  	 		if( localCmd == '5' ){
+	    		xSemaphoreTake(c_mutex, portMAX_DELAY);
+			    PHASE_DELAY = 100 * 2 * 2;
+	    		xSemaphoreGive(c_mutex); 
+			    xSemaphoreTake(w_mutex, portMAX_DELAY);	
+	    		PHASE_DELAY_WISE = 100;
+	    		xSemaphoreGive(w_mutex); 
+			}
+		    if( localCmd == 'B'){
+	    	   xSemaphoreTake(c_mutex, portMAX_DELAY);
+ 		       PHASE_DELAY = 9999 ;
+	           xSemaphoreGive(c_mutex); 
+		       xSemaphoreTake(w_mutex, portMAX_DELAY);
+	           PHASE_DELAY_WISE = 9999 ;
+	    	   xSemaphoreGive(w_mutex); 
+	     	   break;
+			}  
+       	 }
+       }// if 
+       
+    } //while
+}
+
+
+static void stepTask(void *pvParameters){
+   gpio_init();
+   int ClockDelay = 9999;
+
+   while(1){
+	
+       xSemaphoreTake(c_mutex, portMAX_DELAY);
+       ClockDelay = PHASE_DELAY;
+       xSemaphoreGive(c_mutex);
+   
+       GPIO_ResetBits(GPIOG, GPIO_Pin_9 | GPIO_Pin_10 | \
+	               GPIO_Pin_11 | GPIO_Pin_12);
+		
+        GPIO_SetBits(GPIOG, GPIO_Pin_12);
+        GPIO_ResetBits(GPIOG, GPIO_Pin_11);
+        GPIO_ResetBits(GPIOG, GPIO_Pin_10);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+		
+		GPIO_SetBits(GPIOG, GPIO_Pin_12);
+		GPIO_SetBits(GPIOG, GPIO_Pin_11);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_10);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+		
+		GPIO_ResetBits(GPIOG, GPIO_Pin_12);
+		GPIO_SetBits(GPIOG, GPIO_Pin_11);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_10);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+
+		GPIO_ResetBits(GPIOG, GPIO_Pin_12);
+		GPIO_SetBits(GPIOG, GPIO_Pin_11);
+		GPIO_SetBits(GPIOG, GPIO_Pin_10);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+
+		GPIO_ResetBits(GPIOG, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_11);
+		GPIO_SetBits(GPIOG, GPIO_Pin_10);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+
+		GPIO_ResetBits(GPIOG, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_11);
+		GPIO_SetBits(GPIOG, GPIO_Pin_10);
+		GPIO_SetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+		
+		GPIO_ResetBits(GPIOG, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_11);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_10);
+		GPIO_SetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+
+		GPIO_SetBits(GPIOG, GPIO_Pin_12);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_11);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_10);
+		GPIO_SetBits(GPIOG, GPIO_Pin_9);
+		Delay(ClockDelay);
+    }
 
 }
 
+
+
+
+static void stepTask_wise(void *pvParameters){
+   gpio_init_wise();
+   int ClockWiseDelay = 999;
+
+   while(1){
+   		xSemaphoreTake(w_mutex, portMAX_DELAY);
+   		ClockWiseDelay = PHASE_DELAY_WISE;
+   		xSemaphoreGive(w_mutex); 
+   
+   		GPIO_ResetBits(GPIOG, GPIO_Pin_4 | GPIO_Pin_5 | \
+	               GPIO_Pin_6 | GPIO_Pin_7);
+
+		
+		GPIO_SetBits(GPIOG, GPIO_Pin_4);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+		
+		GPIO_SetBits(GPIOG, GPIO_Pin_4);
+		GPIO_SetBits(GPIOG, GPIO_Pin_5);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+		
+		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+		GPIO_SetBits(GPIOG, GPIO_Pin_5);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+
+		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+		GPIO_SetBits(GPIOG, GPIO_Pin_5);
+		GPIO_SetBits(GPIOG, GPIO_Pin_6);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+
+		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+		GPIO_SetBits(GPIOG, GPIO_Pin_6);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+
+		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+		GPIO_SetBits(GPIOG, GPIO_Pin_6);
+		GPIO_SetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+		
+		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+		GPIO_SetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+
+		GPIO_SetBits(GPIOG, GPIO_Pin_4);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+		GPIO_SetBits(GPIOG, GPIO_Pin_7);
+		Delay(ClockWiseDelay);
+
+		}
+		
+}
 //Main Function
 int main(void)
 {
@@ -459,10 +720,24 @@ int main(void)
 		ReportError("Failed to create t_mutex");
 		while(1);
 	}
+	
+	c_mutex = xSemaphoreCreateMutex();
+	if (!c_mutex) {
+		ReportError("Failed to create c_mutex");
+		while(1);
+	}
+	
+	w_mutex = xSemaphoreCreateMutex();
+	if (!w_mutex) {
+		ReportError("Failed to create w_mutex");
+		while(1);
+	}
 
+
+/*
 	xTaskCreate(BuBuTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
-
+*/
 	xTaskCreate(BuBuBeatTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
@@ -470,6 +745,15 @@ int main(void)
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	xTaskCreate(uartTask, (char *) "USART", 256,
+		   	NULL, tskIDLE_PRIORITY + 2, NULL);
+
+	xTaskCreate(stepTask, (char *) "USART", 256,
+		   	NULL, tskIDLE_PRIORITY + 2, NULL);
+
+	xTaskCreate(stepTask_wise, (char *) "USART", 256,
+		   	NULL, tskIDLE_PRIORITY + 2, NULL);
+		   	
+	xTaskCreate(ControlTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
