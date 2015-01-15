@@ -69,8 +69,8 @@ const int T5full = 1680 ;
 const float s = 0.6 ;
 
 static char cmd='#';
-static int PHASE_DELAY = 2000;
-static int PHASE_DELAY_WISE = 2000;
+static int PHASE_DELAY = 4000;
+static int PHASE_DELAY_WISE = 4000;
 
 void gpio_init(){
 	// AHB clock
@@ -437,13 +437,30 @@ static void BuBuBeatTask(void *pvParameters){
 		xSemaphoreGive(t_mutex);
 			
 	    if(localCmd=='C'){
+	        TIM2->CCR2=100;
+ 		    vTaskDelay(250);
+			//Delay(30000);		    
+			TIM2->CCR2=60;
+            vTaskDelay(1050);
+			//Delay(100000);
+
+			while(1){
+				xSemaphoreTake(t_mutex, portMAX_DELAY);
+				localCmd = cmd;
+				xSemaphoreGive(t_mutex);
+				if(localCmd!='D'){
+					TIM2->CCR2=100;		
+					vTaskDelay(250);
+					//Delay(70000);		
+					TIM2->CCR2=60;		    	
+ 					vTaskDelay(1050);
+					//Delay(60000);
+				}
+			}	  	
+		}
+		else if (localCmd=='D'){
 	        TIM2->CCR2=60;
- 		    vTaskDelay(450);
-		    TIM2->CCR2=100;
-            vTaskDelay(250);
-	  	}else{
-	        TIM2->CCR2=60;
- 		    vTaskDelay(1000);
+ 		   
 
 		}
 	}
@@ -461,13 +478,31 @@ static void BuBuSplasherTask(void *pvParameters){
 		xSemaphoreGive(t_mutex);
 			
 		if(localCmd=='C'){
-	    	TIM3->CCR2=160;
- 			vTaskDelay(350);
-			TIM3->CCR2=115;
-        	vTaskDelay(350);
-		}else{
-	    	TIM3->CCR2=90;
- 			vTaskDelay(1000);
+		    TIM3->CCR2=200;		
+		    vTaskDelay(600);
+		    //Delay(70000);		
+		    TIM3->CCR2=140;		    	
+ 			vTaskDelay(700);
+			//Delay(60000);
+		  	
+		    while(1){
+				xSemaphoreTake(t_mutex, portMAX_DELAY);
+				localCmd = cmd;
+				xSemaphoreGive(t_mutex);
+				if(localCmd!='D'){
+				TIM3->CCR2=200;		
+				vTaskDelay(600);
+				//Delay(70000);		
+				TIM3->CCR2=140;		    	
+ 				vTaskDelay(700);
+				//Delay(60000);
+				}
+			}
+        	
+		}
+		else if (localCmd=='D'){
+	    		TIM3->CCR2=90;
+ 			
 		}
 	}
 
@@ -508,10 +543,10 @@ static void ControlTask(void * pvParameters){
        if( localCmd == 'A' ){
 	 
          xSemaphoreTake(c_mutex, portMAX_DELAY);
-	     PHASE_DELAY = 100;
+	     PHASE_DELAY = 110;
 	     xSemaphoreGive(c_mutex);  
 	     xSemaphoreTake(w_mutex, portMAX_DELAY);
-	     PHASE_DELAY_WISE = 100;
+	     PHASE_DELAY_WISE = 110;
 	     xSemaphoreGive(w_mutex);              
 	     while(1){	  
 	         xSemaphoreTake(t_mutex, portMAX_DELAY);			
@@ -520,10 +555,10 @@ static void ControlTask(void * pvParameters){
          
            	 if( localCmd == '3'){
  	     		xSemaphoreTake(c_mutex, portMAX_DELAY);
-		        PHASE_DELAY = 100;
+		        PHASE_DELAY = 110;
 	     		xSemaphoreGive(c_mutex); 
 	            xSemaphoreTake(w_mutex, portMAX_DELAY);
-	     		PHASE_DELAY_WISE = 100;
+	     		PHASE_DELAY_WISE = 110;
 	            xSemaphoreGive(w_mutex); 
           	 }
          	 if( localCmd == '2' ){
