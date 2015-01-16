@@ -32,8 +32,6 @@
 #include <string.h>
 
 #include "main.h"
-#include "draw_graph.h"
-#include "move_car.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -55,18 +53,13 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 xQueueHandle t_queue; /* Traffic light queue. */
-xQueueHandle t_mutex; /* Traffic light mutex. */
-xQueueHandle c_mutex; /* Traffic light mutex. */
-xQueueHandle w_mutex; /* Traffic light mutex. */
+xQueueHandle t_mutex; /* uart cmd mutex. */
+xQueueHandle c_mutex; 
+xQueueHandle w_mutex; 
 
 const int p_scale = 1;
 const int period = 1680 ;
 const int prescalar = 1000 ;
-const int T4full = 1680 * 2*0.16;
-const int T3full = 1680 *0.32 ;
-const int T2full = 1680 ;
-const int T5full = 1680 ;
-const float s = 0.6 ;
 
 static char cmd='#';
 static int PHASE_DELAY = 4000;
@@ -107,38 +100,6 @@ void Delay(uint32_t volatile DelayTime_uS){
 		__NOP();
 }
 
-void bubuGo(void){
-    //TIM4->CCR1=((period/2.5)*0.825)/p_scale; 
-    //TIM3->CCR1=((period/3)*0.825)/p_scale; 
-//TIM4->CCR1=T4full;
-  //  TIM3->CCR1=T3full;
-//    TIM2->CCR2=T2full;
-//    TIM5->CCR2=T5full;
-}
-
-void bubuStop(void){
-    TIM4->CCR1=0;
-    TIM3->CCR1=0; 
-}
-
-void bubuLeftfront(void){
-    TIM4->CCR1=T4full;
-    TIM3->CCR1=T3full*s; 
-}
-
-void bubuLeft(void){
-    TIM4->CCR1=T4full;
-    TIM3->CCR1=T3full*s*s; 
-}
-
-void bubuRightfront(void){
-    TIM4->CCR1=T4full*s*s;
-    TIM3->CCR1=T3full; 
-}
-void bubuRight(void){
-    TIM4->CCR1=T4full*s*s*s;
-    TIM3->CCR1=T3full; 
-}
 void USART1_Configuration(void)
 {
     USART_InitTypeDef USART_InitStructure;
@@ -358,73 +319,7 @@ void USART1_puts(char* s)
         s++;
     }
 }
-static void BuBuTask(void *pvParameters)
-{
-  /*volatile int i;
-  int n = 1;
-  int x = 1;
-  int c = 1;
-  int pulse=42;
-  int Button=0;
 
-  //Timer4
-  RCC_Configuration4();
-  TIM_Configuration4();
-  GPIO_Configuration4();
-  
-  //Timer3
-  RCC_Configuration3();
-  TIM_Configuration3();
-  GPIO_Configuration3();
-  
-
-
-  
-  char localCmd='#';
-  while(1){  // Do not exit
-      xSemaphoreTake(t_mutex, portMAX_DELAY);
-	  localCmd = cmd;
-	  xSemaphoreGive(t_mutex);
- 
-      if( localCmd == 'B' ){
-          bubuStop();
-      }
-
-      if( localCmd == 'A' ){
-
-          bubuGo();
-          while (1 ){
-                  
-		  
-		  	xSemaphoreTake(t_mutex, portMAX_DELAY);			
-		  	localCmd = cmd;
-		  	xSemaphoreGive(t_mutex);
-                  
-          	if( localCmd == '3'){
-		      bubuGo();
-          	}
-	      	if( localCmd == '2' ){
-              bubuLeftfront();
-	      	}
-		  	if( localCmd == '4' ){
-		      bubuRightfront();
-		  	}
-		  	if( localCmd == '1' ){
-		      bubuLeft();
-		  	}
-  		  	if( localCmd == '5' ){
-		      bubuRight(); 
-		 	}
-	 	  	if( localCmd == 'B'){
-			  bubuStop();
-			  break;
-		 	}
-		  
-	     }
-	  }
-
-   }  //while*/
-}
 static void BuBuBeatTask(void *pvParameters){
     //Timer2
     RCC_Configuration2();
@@ -511,7 +406,7 @@ static void BuBuSplasherTask(void *pvParameters){
 	}
 
 }
-static void uartTask(void *pvParameters){
+static void UartCmdFromBtTask(void *pvParameters){
 
     //USART
     RCC_Configuration();
@@ -525,7 +420,7 @@ static void uartTask(void *pvParameters){
 	}
 }
 
-static void ControlTask(void * pvParameters){
+static void JudgeStepMotorTask(void * pvParameters){
 
 	char localCmd='%';
 	while(1){
@@ -613,7 +508,7 @@ static void ControlTask(void * pvParameters){
 }
 
 
-static void stepTask(void *pvParameters){
+static void StepMotorTask(void *pvParameters){
    gpio_init();
    int ClockDelay = 9999;
 
@@ -680,7 +575,7 @@ static void stepTask(void *pvParameters){
 
 
 
-static void stepTask_wise(void *pvParameters){
+static void StepMotorWiseTask(void *pvParameters){
    gpio_init_wise();
    int ClockWiseDelay = 999;
 
@@ -750,49 +645,41 @@ int main(void)
 
 	t_queue = xQueueCreate(1, sizeof(int));
 	if (!t_queue) {
-		ReportError("Failed to create t_queue");
 		while(1);
 	}
 
 	t_mutex = xSemaphoreCreateMutex();
 	if (!t_mutex) {
-		ReportError("Failed to create t_mutex");
 		while(1);
 	}
 	
 	c_mutex = xSemaphoreCreateMutex();
 	if (!c_mutex) {
-		ReportError("Failed to create c_mutex");
 		while(1);
 	}
 	
 	w_mutex = xSemaphoreCreateMutex();
 	if (!w_mutex) {
-		ReportError("Failed to create w_mutex");
 		while(1);
 	}
 
 
-/*
-	xTaskCreate(BuBuTask, (char *) "USART", 256,
-		   	NULL, tskIDLE_PRIORITY + 2, NULL);
-*/
-	xTaskCreate(BuBuBeatTask, (char *) "USART", 256,
+	xTaskCreate(BuBuBeatTask, (char *) "BuBuBeatTask", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(BuBuSplasherTask, (char *) "USART", 256,
+	xTaskCreate(BuBuSplasherTask, (char *) "BuBuSplasherTask", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(uartTask, (char *) "USART", 256,
+	xTaskCreate(UartCmdFromBtTask, (char *) "UartCmdFromBtTask", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(stepTask, (char *) "USART", 256,
+	xTaskCreate(StepMotorTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(stepTask_wise, (char *) "USART", 256,
+	xTaskCreate(StepMotorWiseTask, (char *) "StepMotorWiseTask", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 		   	
-	xTaskCreate(ControlTask, (char *) "USART", 256,
+	xTaskCreate(JudgeStepMotorTask, (char *) "JudgeStepMotorTask", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
