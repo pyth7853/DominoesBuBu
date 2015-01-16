@@ -53,17 +53,18 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 xQueueHandle t_queue; /* Traffic light queue. */
-xQueueHandle t_mutex; /* uart cmd mutex. */
-xQueueHandle c_mutex; 
-xQueueHandle w_mutex; 
+xQueueHandle t_mutex; /* Traffic light mutex. */
+xQueueHandle c_mutex;
+xQueueHandle w_mutex;
 
 const int p_scale = 1;
 const int period = 1680 ;
 const int prescalar = 1000 ;
 
+
 static char cmd='#';
-static int PHASE_DELAY = 4000;
-static int PHASE_DELAY_WISE = 4000;
+static int PHASE_DELAY = 9999;
+static int PHASE_DELAY_WISE = 9999;
 
 void gpio_init(){
 	// AHB clock
@@ -319,38 +320,58 @@ void USART1_puts(char* s)
         s++;
     }
 }
-
 static void BuBuBeatTask(void *pvParameters){
     //Timer2
     RCC_Configuration2();
     TIM_Configuration2();
     GPIO_Configuration2();
     char localCmd='%';
+	int servo_turn=0;
     while(1){
 	    xSemaphoreTake(t_mutex, portMAX_DELAY);
 		localCmd = cmd;
 		xSemaphoreGive(t_mutex);
 			
+	    if( localCmd=='2' || localCmd=='4' ){
+			servo_turn=200;
+		}else if (localCmd=='1' || localCmd=='5'){
+			servo_turn=400;
+		}else if(localCmd=='3' || localCmd=='A'){
+			servo_turn=0;
+		}
+
 	    if(localCmd=='C'){
-	        TIM2->CCR2=100;
- 		    vTaskDelay(250);
+							
+	        TIM2->CCR2=110;
+ 		    vTaskDelay(300+servo_turn);
 			//Delay(30000);		    
 			TIM2->CCR2=60;
-            vTaskDelay(1050);
+            vTaskDelay(1100+servo_turn);
 			//Delay(100000);
 
 			while(1){
 				xSemaphoreTake(t_mutex, portMAX_DELAY);
 				localCmd = cmd;
 				xSemaphoreGive(t_mutex);
+
+			
+			    if( localCmd=='2' || localCmd=='4' ){
+					servo_turn=200;
+				}else if (localCmd=='1' || localCmd=='5'){
+					servo_turn=400;
+				}else if(localCmd=='3' || localCmd=='A'){
+					servo_turn=0;
+				}
+							
+
 				if(localCmd=='B' || localCmd=='D'){
 					break;
 				}else{
-					TIM2->CCR2=100;		
-					vTaskDelay(250);
+					TIM2->CCR2=110;		
+					vTaskDelay(300+servo_turn);
 					//Delay(70000);		
 					TIM2->CCR2=60;		    	
- 					vTaskDelay(1050);
+ 					vTaskDelay(1100+servo_turn);
 					//Delay(60000);
 				}
 			}	  	
@@ -369,31 +390,49 @@ static void BuBuSplasherTask(void *pvParameters){
 	TIM_Configuration3();
     GPIO_Configuration3();
     char localCmd='%';
+	int servo_turn=0;
     while(1){
 	    xSemaphoreTake(t_mutex, portMAX_DELAY);
 		localCmd = cmd;
 		xSemaphoreGive(t_mutex);
-			
+						
+	    if( localCmd=='2' || localCmd=='4' ){
+			servo_turn=200;
+		}else if (localCmd=='1' || localCmd=='5'){
+			servo_turn=400;
+		}else if(localCmd=='3' || localCmd=='A'){
+			servo_turn=0;
+		}
+
 		if(localCmd=='C'){
-		    TIM3->CCR2=200;		
-		    vTaskDelay(600);
+		    TIM3->CCR2=190;		
+		    vTaskDelay(600+servo_turn);
 		    //Delay(70000);		
 		    TIM3->CCR2=140;		    	
- 			vTaskDelay(700);
+ 			vTaskDelay(800+servo_turn);
 			//Delay(60000);
 		  	
 		    while(1){
 				xSemaphoreTake(t_mutex, portMAX_DELAY);
 				localCmd = cmd;
 				xSemaphoreGive(t_mutex);
+			
+			    if( localCmd=='2' || localCmd=='4' ){
+					servo_turn=200;
+				}else if (localCmd=='1' || localCmd=='5'){
+					servo_turn=400;
+				}else if(localCmd=='3' || localCmd=='A'){
+					servo_turn=0;
+				}
+
 				if(localCmd=='B' || localCmd=='D'){
 					break;
-				}else{
-					TIM3->CCR2=200;		
-					vTaskDelay(600);
+				}else{			
+					TIM3->CCR2=190;		
+					vTaskDelay(600+servo_turn);
 					//Delay(70000);		
 					TIM3->CCR2=140;		    	
- 					vTaskDelay(700);
+ 					vTaskDelay(800+servo_turn);
 					//Delay(60000);
 				}
 			}
@@ -462,34 +501,34 @@ static void JudgeStepMotorTask(void * pvParameters){
           	 }
          	 if( localCmd == '2' ){
             	xSemaphoreTake(c_mutex, portMAX_DELAY);
-			    PHASE_DELAY = 100;
+			    PHASE_DELAY = 110-10;
 	    		xSemaphoreGive(c_mutex); 
 	    		xSemaphoreTake(w_mutex, portMAX_DELAY);
-			    PHASE_DELAY_WISE = 100 * 2;
+			    PHASE_DELAY_WISE = 110+30 ;
 	    		xSemaphoreGive(w_mutex); 
 	 		}
 	 		if( localCmd == '4' ){
 	    		xSemaphoreTake(c_mutex, portMAX_DELAY);
-	    		PHASE_DELAY = 100 * 2;
+	    		PHASE_DELAY = 110+30 ;
 			    xSemaphoreGive(c_mutex); 	
 			    xSemaphoreTake(w_mutex, portMAX_DELAY);
-			    PHASE_DELAY_WISE = 100;
+			    PHASE_DELAY_WISE = 110-10;
 			    xSemaphoreGive(w_mutex); 
 			}
 		    if( localCmd == '1' ){
 			    xSemaphoreTake(c_mutex, portMAX_DELAY);
-	    		PHASE_DELAY = 100;
+	    		PHASE_DELAY = 110-20;
 	    		xSemaphoreGive(c_mutex); 
 	    		xSemaphoreTake(w_mutex, portMAX_DELAY);
-	    		PHASE_DELAY_WISE = 100 * 2 * 2 ;
+	    		PHASE_DELAY_WISE = 100 +40 ;
 	    		xSemaphoreGive(w_mutex); 
 	 		}
   	 		if( localCmd == '5' ){
 	    		xSemaphoreTake(c_mutex, portMAX_DELAY);
-			    PHASE_DELAY = 100 * 2 * 2;
+			    PHASE_DELAY = 110+40;
 	    		xSemaphoreGive(c_mutex); 
 			    xSemaphoreTake(w_mutex, portMAX_DELAY);	
-	    		PHASE_DELAY_WISE = 100;
+	    		PHASE_DELAY_WISE = 110-20;
 	    		xSemaphoreGive(w_mutex); 
 			}
 		    if( localCmd == 'B'){
@@ -518,7 +557,8 @@ static void StepMotorTask(void *pvParameters){
        ClockDelay = PHASE_DELAY;
        xSemaphoreGive(c_mutex);
    
-       GPIO_ResetBits(GPIOG, GPIO_Pin_9 | GPIO_Pin_10 | \
+     if(ClockDelay!=9999){
+     	GPIO_ResetBits(GPIOG, GPIO_Pin_9 | GPIO_Pin_10 | \
 	               GPIO_Pin_11 | GPIO_Pin_12);
 		
         GPIO_SetBits(GPIOG, GPIO_Pin_12);
@@ -568,7 +608,8 @@ static void StepMotorTask(void *pvParameters){
 		GPIO_ResetBits(GPIOG, GPIO_Pin_10);
 		GPIO_SetBits(GPIOG, GPIO_Pin_9);
 		Delay(ClockDelay);
-    }
+     }
+  }
 
 }
 
@@ -584,60 +625,61 @@ static void StepMotorWiseTask(void *pvParameters){
    		ClockWiseDelay = PHASE_DELAY_WISE;
    		xSemaphoreGive(w_mutex); 
    
-   		GPIO_ResetBits(GPIOG, GPIO_Pin_4 | GPIO_Pin_5 | \
+		if(ClockWiseDelay!=9999){
+   	        GPIO_ResetBits(GPIOG, GPIO_Pin_4 | GPIO_Pin_5 | \
 	               GPIO_Pin_6 | GPIO_Pin_7);
 
 		
-		GPIO_SetBits(GPIOG, GPIO_Pin_4);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_SetBits(GPIOG, GPIO_Pin_4);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 		
-		GPIO_SetBits(GPIOG, GPIO_Pin_4);
-		GPIO_SetBits(GPIOG, GPIO_Pin_5);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_SetBits(GPIOG, GPIO_Pin_4);
+			GPIO_SetBits(GPIOG, GPIO_Pin_5);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 		
-		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
-		GPIO_SetBits(GPIOG, GPIO_Pin_5);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+			GPIO_SetBits(GPIOG, GPIO_Pin_5);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 
-		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
-		GPIO_SetBits(GPIOG, GPIO_Pin_5);
-		GPIO_SetBits(GPIOG, GPIO_Pin_6);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+			GPIO_SetBits(GPIOG, GPIO_Pin_5);
+			GPIO_SetBits(GPIOG, GPIO_Pin_6);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 
-		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
-		GPIO_SetBits(GPIOG, GPIO_Pin_6);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+			GPIO_SetBits(GPIOG, GPIO_Pin_6);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 
-		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
-		GPIO_SetBits(GPIOG, GPIO_Pin_6);
-		GPIO_SetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+			GPIO_SetBits(GPIOG, GPIO_Pin_6);
+			GPIO_SetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 		
-		GPIO_ResetBits(GPIOG, GPIO_Pin_4);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
-		GPIO_SetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
-
-		GPIO_SetBits(GPIOG, GPIO_Pin_4);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_5);
-		GPIO_ResetBits(GPIOG, GPIO_Pin_6);
-		GPIO_SetBits(GPIOG, GPIO_Pin_7);
-		Delay(ClockWiseDelay);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_4);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+			GPIO_SetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
+	
+			GPIO_SetBits(GPIOG, GPIO_Pin_4);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_5);
+			GPIO_ResetBits(GPIOG, GPIO_Pin_6);
+			GPIO_SetBits(GPIOG, GPIO_Pin_7);
+			Delay(ClockWiseDelay);
 
 		}
-		
+	}
 }
 //Main Function
 int main(void)
@@ -645,41 +687,45 @@ int main(void)
 
 	t_queue = xQueueCreate(1, sizeof(int));
 	if (!t_queue) {
+
 		while(1);
 	}
 
 	t_mutex = xSemaphoreCreateMutex();
 	if (!t_mutex) {
+
 		while(1);
 	}
 	
 	c_mutex = xSemaphoreCreateMutex();
 	if (!c_mutex) {
+
 		while(1);
 	}
 	
 	w_mutex = xSemaphoreCreateMutex();
 	if (!w_mutex) {
+
 		while(1);
 	}
 
 
-	xTaskCreate(BuBuBeatTask, (char *) "BuBuBeatTask", 256,
+	xTaskCreate(BuBuBeatTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(BuBuSplasherTask, (char *) "BuBuSplasherTask", 256,
+	xTaskCreate(BuBuSplasherTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(UartCmdFromBtTask, (char *) "UartCmdFromBtTask", 256,
+	xTaskCreate(UartCmdFromBtTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	xTaskCreate(StepMotorTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
-	xTaskCreate(StepMotorWiseTask, (char *) "StepMotorWiseTask", 256,
+	xTaskCreate(StepMotorWiseTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 		   	
-	xTaskCreate(JudgeStepMotorTask, (char *) "JudgeStepMotorTask", 256,
+	xTaskCreate(JudgeStepMotorTask, (char *) "USART", 256,
 		   	NULL, tskIDLE_PRIORITY + 2, NULL);
 
 	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
