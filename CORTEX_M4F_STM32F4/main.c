@@ -333,9 +333,9 @@ static void BuBuBeatTask(void *pvParameters){
 		xSemaphoreGive(t_mutex);
 			
 	    if( localCmd=='2' || localCmd=='4' ){
-			servo_turn=200;
+			servo_turn=35;
 		}else if (localCmd=='1' || localCmd=='5'){
-			servo_turn=400;
+			servo_turn=55;
 		}else if(localCmd=='3' || localCmd=='A'){
 			servo_turn=0;
 		}
@@ -356,9 +356,9 @@ static void BuBuBeatTask(void *pvParameters){
 
 			
 			    if( localCmd=='2' || localCmd=='4' ){
-					servo_turn=200;
+					servo_turn=35;
 				}else if (localCmd=='1' || localCmd=='5'){
-					servo_turn=400;
+					servo_turn=55;
 				}else if(localCmd=='3' || localCmd=='A'){
 					servo_turn=0;
 				}
@@ -397,9 +397,9 @@ static void BuBuSplasherTask(void *pvParameters){
 		xSemaphoreGive(t_mutex);
 						
 	    if( localCmd=='2' || localCmd=='4' ){
-			servo_turn=200;
+			servo_turn=25;
 		}else if (localCmd=='1' || localCmd=='5'){
-			servo_turn=400;
+			servo_turn=40;
 		}else if(localCmd=='3' || localCmd=='A'){
 			servo_turn=0;
 		}
@@ -418,9 +418,9 @@ static void BuBuSplasherTask(void *pvParameters){
 				xSemaphoreGive(t_mutex);
 			
 			    if( localCmd=='2' || localCmd=='4' ){
-					servo_turn=200;
+					servo_turn=25;
 				}else if (localCmd=='1' || localCmd=='5'){
-					servo_turn=400;
+					servo_turn=40;
 				}else if(localCmd=='3' || localCmd=='A'){
 					servo_turn=0;
 				}
